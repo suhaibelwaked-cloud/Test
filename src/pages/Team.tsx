@@ -1,67 +1,17 @@
+import { useState } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { CreateGroupDialog } from "@/components/team/CreateGroupDialog";
+import { GroupCard } from "@/components/team/GroupCard";
+import { MembersList } from "@/components/team/MembersList";
+import { useGroups, Group } from "@/hooks/useGroups";
+import { Users, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { 
-  User, 
-  Mail, 
-  Shield,
-  Plus,
-  MoreVertical
-} from "lucide-react";
-
-interface TeamMember {
-  id: string;
-  name: string;
-  email: string;
-  role: "admin" | "analyst" | "viewer";
-  avatar: string;
-  status: "online" | "offline";
-}
-
-const team: TeamMember[] = [
-  {
-    id: "1",
-    name: "John Smith",
-    email: "john.smith@company.com",
-    role: "admin",
-    avatar: "JS",
-    status: "online",
-  },
-  {
-    id: "2",
-    name: "Sarah Johnson",
-    email: "sarah.j@company.com",
-    role: "analyst",
-    avatar: "SJ",
-    status: "online",
-  },
-  {
-    id: "3",
-    name: "Mike Chen",
-    email: "mike.chen@company.com",
-    role: "analyst",
-    avatar: "MC",
-    status: "offline",
-  },
-  {
-    id: "4",
-    name: "Emily Davis",
-    email: "emily.d@company.com",
-    role: "viewer",
-    avatar: "ED",
-    status: "online",
-  },
-];
-
-const roleConfig = {
-  admin: { label: "Admin", color: "bg-primary/20 text-primary" },
-  analyst: { label: "Analyst", color: "bg-accent/20 text-accent" },
-  viewer: { label: "Viewer", color: "bg-muted text-muted-foreground" },
-};
 
 const Team = () => {
+  const { groups, loading } = useGroups();
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
@@ -69,53 +19,68 @@ const Team = () => {
       <main className="ml-64 p-8">
         <Header 
           title="Team Management" 
-          subtitle="Manage your security team members"
+          subtitle="Manage groups and assign roles to team members"
         />
 
-        <div className="flex items-center justify-end mb-6">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Invite Member
-          </Button>
+        <div className="flex items-center justify-between mb-6">
+          {selectedGroup ? (
+            <Button variant="ghost" onClick={() => setSelectedGroup(null)}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Groups
+            </Button>
+          ) : (
+            <div />
+          )}
+          {!selectedGroup && <CreateGroupDialog />}
         </div>
 
-        <div className="grid gap-4">
-          {team.map((member, index) => (
-            <div 
-              key={member.id}
-              className="glass-card rounded-lg p-5 flex items-center justify-between animate-fade-in"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold">
-                    {member.avatar}
-                  </div>
-                  <div className={cn(
-                    "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-card",
-                    member.status === "online" ? "bg-success" : "bg-muted-foreground"
-                  )} />
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          </div>
+        ) : selectedGroup ? (
+          <div className="space-y-4">
+            <div className="glass-card rounded-lg p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                  <Users className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">{member.name}</h3>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    {member.email}
-                  </p>
+                  <h2 className="text-xl font-bold">{selectedGroup.name}</h2>
+                  {selectedGroup.description && (
+                    <p className="text-muted-foreground">{selectedGroup.description}</p>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge className={cn("text-xs", roleConfig[member.role].color)}>
-                  <Shield className="h-3 w-3 mr-1" />
-                  {roleConfig[member.role].label}
-                </Badge>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </div>
+              <MembersList groupId={selectedGroup.id} />
             </div>
-          ))}
-        </div>
+          </div>
+        ) : groups.length === 0 ? (
+          <div className="glass-card rounded-lg p-12 text-center">
+            <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h3 className="text-lg font-semibold mb-2">No Groups Yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Create your first group to organize team members and assign roles.
+            </p>
+            <CreateGroupDialog />
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {groups.map((group, index) => (
+              <div
+                key={group.id}
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <GroupCard
+                  group={group}
+                  onSelect={setSelectedGroup}
+                  isSelected={selectedGroup?.id === group.id}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
